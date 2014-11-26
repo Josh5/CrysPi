@@ -1,0 +1,53 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          streamcryspi
+# Required-Start:    $network $local_fs $remote_fs lighttpd
+# Required-Stop:     $network $local_fs $remote_fs lighttpd
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Audio to ffmpeg
+# Description:       Audio capture via arecord and ffmpeg.
+### END INIT INFO
+
+# Author: Josh.5
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+DESC="Audio Capture"
+NAME=streamcryspi
+DAEMON=/opt/cryspi/cryspi_audio
+PIDFILE=/var/run/$NAME.pid
+SCRIPTNAME=/etc/init.d/$NAME
+
+[ -x $DAEMON ] || exit 0
+
+. /lib/init/vars.sh
+. /lib/lsb/init-functions
+
+
+
+case $1 in
+	start)
+		log_daemon_msg "Starting $DESC " "$NAME"
+		start-stop-daemon --start --background --quiet --pidfile $PIDFILE --make-pidfile --exec $DAEMON
+		status=$?
+		log_end_msg $status
+		;;
+	stop)
+		log_daemon_msg "Stopping $DESC" "$NAME"
+		start-stop-daemon --stop --quiet --pidfile $PIDFILE
+		status=$?
+		log_end_msg $status
+		rm -f $PIDFILE
+		;;
+	restart|force-reload)
+		$0 stop && sleep 2 && $0 start
+		;;
+	status)
+		status_of_proc "$DAEMON" "$NAME"
+		;;
+	*)
+		echo "Usage: $SCRIPTNAME {start|stop|restart|force-reload|status}"
+		exit 2
+		;;
+esac
+

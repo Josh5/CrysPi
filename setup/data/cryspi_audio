@@ -1,0 +1,8 @@
+#!/bin/sh
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+
+sleep 10
+
+export LD_LIBRARY_PATH=/usr/local/lib
+exec arecord -f cd -D plughw:1,0 | ffmpeg -i - http://localhost:8090/feed1.ffm
