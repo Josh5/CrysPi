@@ -134,6 +134,7 @@ do
     case $opt in
       1) BUILDTYPE="pair"; break;;
       2) BUILDTYPE="solo"; break;;
+      3) BUILDTYPE="no-audio"; break;;
       *) echo "Invalid option"; continue;;
     esac
   fi
@@ -312,17 +313,19 @@ echo "[+]   Updating hostname:"
 cd $CWD
 sudo ./changehost crysPi
 
-clear
-echo "------------------------------"
-echo "---> Setting up CrysPi Audio: "
-echo "------------------------------"
-echo
-echo
-echo
-sleep 2
-echo "[+]   Installing Web server:"
-cd $CWD
-sudo ./audio.sh $BUILDTYPE
+if [ ! "$BUILDTYPE" = "no-audio" ]; then
+  clear
+  echo "------------------------------"
+  echo "---> Setting up CrysPi Audio: "
+  echo "------------------------------"
+  echo
+  echo
+  echo
+  sleep 2
+  echo "[+]   Installing Audio server:"
+  cd $CWD
+  sudo ./audio.sh $BUILDTYPE
+fi
 
 echo
 echo "---------------------------------"

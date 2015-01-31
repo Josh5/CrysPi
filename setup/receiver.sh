@@ -1,6 +1,4 @@
 #!/bin/bash
-#incase error, run: sed -i 's/\r//' filename
-#Make executable: sudo chmod +x filename
 
 ###INFORMATION:
 #
@@ -17,27 +15,6 @@
 #
 ###END INFORMATION
 
-# ------> DO NOT EDIT ANYTHING UNLESS YOU KNOW WHAT YOU ARE DOING. <------ #
-
-##### ---> MANUAL CONFIGURATIONS <--- #####
-#
-#-------------------------------------
-#echo "CONFIGURE SAMBA SHARE:"
-#echo
-#sudo tee -a /etc/samba/smb.conf <<EOF
-#[ROOT]
-#    comment = ROOT
-#    path = /
-#    browsable = yes
-#    guest ok = yes
-#    read only = no
-#    force user = root
-#    create mask = 0755
-#EOF
-#sudo service samba restart
-#
-##### <--- END MANUAL CONFIGURATIOS ---> #####
-
 ##### <--- Start Script ---> #####
 if [ "$(id -u)" != "0" ]; then
   echo
@@ -50,19 +27,6 @@ if [ "$(id -u)" != "0" ]; then
   exit 1
 fi
 
-if [ -d "./www" ]
-then
-    echo
-else
-  echo
-  echo "  ----------------------------- !! NOTE !! ------------------------------"
-  echo "     This script needs to be run from within the setup directory.        "
-  echo "     Change directory to the one containing the scrip and try again      "
-  echo '     using the command: "sudo ./setup.sh"                                '
-  echo "  -----------------------------------------------------------------------"
-  echo
-  exit 1
-fi
 clear
 
 echo '
@@ -113,7 +77,6 @@ then
 fi
 clear
 CWD=$PWD
-sudo chmod +x ./*
 
 #<--- Update Packages:
 echo "------------------------"
@@ -121,13 +84,6 @@ echo "---> Updating Packages:"
 echo "------------------------"
 sudo apt-get update
 sudo apt-get install -y --reinstall bash-completion
-echo
-
-#<--- Download and install any packages upgrades:
-#echo "-------------------------------------------------------"
-#echo "---> Downloading and installing any packages upgrades:"
-#echo "-------------------------------------------------------"
-#sudo apt-get upgrade (this broke my pi!)
 echo
 
 echo "--------------------------------------------"
@@ -144,7 +100,7 @@ sudo tee -a ./listen <<"EOF"
 #!/bin/bash
 pipeDIR="/var/www/cryspi/"
 pipe=$pipeDIR"stream.mp3"
-streamIP="cryspi"
+streamIP="192.168.1.1"
 
 if [[ ! -p $pipe ]]; then
     mkdir -p $pipeDIR
@@ -161,6 +117,134 @@ do
 done
 EOF
 fi
+
+mkdir -p /opt/cryspi
+sudo cp ./listen /opt/cryspi/listen
+sudo chmod +x /opt/cryspi/listen
+
+
+if [ ! -f /etc/init.d/listencryspi ]; then
+echo "[+]   Start listen script on boot:"
+sudo tee -a /etc/init.d/listencryspi <<"EOF"
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          listencryspi
+# Required-Start:    $network $local_fs $remote_fs
+# Required-Stop:     $network $local_fs $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Netcat to pipe
+# Description:       Pipe netcat stream to temp pipe.
+### END INIT INFO
+
+# Author: Josh.5
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+DESC="Netcat pipe"
+NAME=listencryspi
+DAEMON=/opt/cryspi/listen
+PIDFILE=/var/run/$NAME.pid
+SCRIPTNAME=/etc/init.d/$NAME
+
+[ -x $DAEMON ] || exit 0
+
+. /lib/init/vars.sh
+. /lib/lsb/init-functions
+
+
+
+case $1 in
+	start)
+		log_daemon_msg "Starting $DESC " "$NAME"
+		start-stop-daemon --start --background --quiet --pidfile $PIDFILE --make-pidfile --exec $DAEMON
+		status=$?
+		log_end_msg $status
+		;;
+	stop)
+		log_daemon_msg "Stopping $DESC" "$NAME"
+		start-stop-daemon --stop --quiet --pidfile $PIDFILE
+		status=$?
+		log_end_msg $status
+		rm -f $PIDFILE
+		;;
+	restart|force-reload)
+		$0 stop && sleep 2 && $0 start
+		;;
+	status)
+		status_of_proc "$DAEMON" "$NAME"
+		;;
+	*)
+		echo "Usage: $SCRIPTNAME {start|stop|restart|force-reload|status}"
+		exit 2
+		;;
+esac
+EOF
+fi
+
+
+if [ ! -f /etc/init.d/playaudio ]; then
+echo "[+]   Start listen script on boot:"
+sudo tee -a /etc/init.d/playaudio <<"EOF"
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          playaudio
+# Required-Start:    $network $local_fs $remote_fs listencryspi
+# Required-Stop:     $network $local_fs $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Play Stream
+# Description:       Output netcat stream to default playback device via aplay.
+### END INIT INFO
+
+# Author: Josh.5
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+DESC="Play Stream"
+NAME=playaudio
+DAEMON=aplay /var/www/cryspi/stream.mp3
+PIDFILE=/var/run/$NAME.pid
+SCRIPTNAME=/etc/init.d/$NAME
+
+[ -x $DAEMON ] || exit 0
+
+. /lib/init/vars.sh
+. /lib/lsb/init-functions
+
+
+
+case $1 in
+	start)
+		log_daemon_msg "Starting $DESC " "$NAME"
+		start-stop-daemon --start --background --quiet --pidfile $PIDFILE --make-pidfile --exec $DAEMON
+		status=$?
+		log_end_msg $status
+		;;
+	stop)
+		log_daemon_msg "Stopping $DESC" "$NAME"
+		start-stop-daemon --stop --quiet --pidfile $PIDFILE
+		status=$?
+		log_end_msg $status
+		rm -f $PIDFILE
+		;;
+	restart|force-reload)
+		$0 stop && sleep 2 && $0 start
+		;;
+	status)
+		status_of_proc "$DAEMON" "$NAME"
+		;;
+	*)
+		echo "Usage: $SCRIPTNAME {start|stop|restart|force-reload|status}"
+		exit 2
+		;;
+esac
+EOF
+  sudo chmod +x /opt/cryspi/listen
+  sudo chmod +x /etc/init.d/listencryspi
+  sudo chmod +x /etc/init.d/playaudio
+  sudo update-rc.d listencryspi defaults
+  sudo update-rc.d playaudio defaults
+fi
+
 
 echo
 echo "---------------------------------"
